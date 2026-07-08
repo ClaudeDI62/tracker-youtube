@@ -1,0 +1,17 @@
+# Database
+supabase>=2.0.0
+
+# RSS feed parsing
+feedparser>=6.0.0
+
+# HTTP requests
+httpx>=0.27.0
+
+# YouTube transcripts
+youtube-transcript-api>=1.0.0
+
+# Claude API for extraction
+anthropic>=0.40.0
+
+# Environment variables
+python-dotenv>=1.0.0
