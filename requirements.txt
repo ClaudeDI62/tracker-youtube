@@ -13,5 +13,12 @@ youtube-transcript-api>=1.0.0
 # Claude API for extraction
 anthropic>=0.40.0
 
+# Price data
+yfinance>=0.2.0
+
+# Dashboard
+streamlit>=1.30.0
+openpyxl>=3.1.0
+
 # Environment variables
 python-dotenv>=1.0.0
