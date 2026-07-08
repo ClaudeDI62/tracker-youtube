@@ -1,6 +1,7 @@
 """YouTube Recommendation Tracker — Dashboard Streamlit."""
 
 import io
+import re
 from datetime import date, datetime
 
 import streamlit as st
@@ -378,6 +379,94 @@ def generate_excel():
     return buf.getvalue()
 
 
+# --- Page: Gestione Canali ---
+def _extract_channel_id(url_or_id):
+    """Try to extract channel_id from a URL or return as-is if it looks like one."""
+    if url_or_id.startswith("UC") and len(url_or_id) == 24:
+        return url_or_id
+    match = re.search(r"channel/(UC[\w-]{22})", url_or_id)
+    if match:
+        return match.group(1)
+    return url_or_id.strip()
+
+
+def page_manage_channels():
+    st.header("Gestione Canali")
+    st.caption("Aggiungi, attiva o disattiva i canali YouTube monitorati.")
+
+    db = get_db()
+
+    channels = db.table("channels").select("*").order("name").execute().data
+
+    # --- Current channels ---
+    st.subheader("Canali attuali")
+    if channels:
+        for ch in channels:
+            col1, col2, col3 = st.columns([4, 1, 1])
+            with col1:
+                status_icon = "🟢" if ch["active"] else "🔴"
+                st.markdown(f"**{status_icon} {ch['name']}**")
+                st.caption(f"ID: {ch['channel_id']} · Lingua: {ch.get('language', '?')} · Mercato: {ch.get('market_default', '?')}")
+            with col2:
+                n_videos = len(db.table("videos").select("id").eq("channel_id", ch["id"]).execute().data)
+                st.metric("Video", n_videos)
+            with col3:
+                if ch["active"]:
+                    if st.button("Disattiva", key=f"deact_{ch['id']}"):
+                        db.table("channels").update({"active": False}).eq("id", ch["id"]).execute()
+                        st.rerun()
+                else:
+                    if st.button("Attiva", key=f"act_{ch['id']}"):
+                        db.table("channels").update({"active": True}).eq("id", ch["id"]).execute()
+                        st.rerun()
+            st.divider()
+    else:
+        st.info("Nessun canale configurato.")
+
+    # --- Add new channel ---
+    st.subheader("Aggiungi nuovo canale")
+
+    with st.form("add_channel", clear_on_submit=True):
+        col_a, col_b = st.columns(2)
+        with col_a:
+            new_name = st.text_input("Nome del canale *", placeholder="Es. Mario Rossi Finance")
+            new_url = st.text_input("URL del canale *", placeholder="https://www.youtube.com/@NomeCanale")
+        with col_b:
+            new_channel_id = st.text_input("Channel ID *", placeholder="UCxxxxxxxxxxxxxxxxxx (inizia con UC, 24 caratteri)")
+            lang_col, market_col = st.columns(2)
+            with lang_col:
+                new_language = st.selectbox("Lingua", ["EN", "IT", "DE", "FR", "ES"])
+            with market_col:
+                new_market = st.selectbox("Mercato", ["USA", "Europe", "Italy", "Germany", "UK"])
+
+        st.caption("* Campi obbligatori. Il Channel ID si trova nella URL della pagina del canale o cercando 'YouTube Channel ID Finder' su Google.")
+
+        submitted = st.form_submit_button("Aggiungi canale", type="primary")
+
+        if submitted:
+            if not new_name or not new_url or not new_channel_id:
+                st.error("Compila tutti i campi obbligatori.")
+            else:
+                clean_id = _extract_channel_id(new_channel_id)
+                if not clean_id.startswith("UC") or len(clean_id) != 24:
+                    st.error("Il Channel ID deve iniziare con 'UC' e avere 24 caratteri.")
+                else:
+                    existing = db.table("channels").select("id").eq("channel_id", clean_id).execute()
+                    if existing.data:
+                        st.error("Questo canale esiste gia nel database.")
+                    else:
+                        db.table("channels").insert({
+                            "name": new_name.strip(),
+                            "url": new_url.strip(),
+                            "channel_id": clean_id,
+                            "language": new_language,
+                            "market_default": new_market,
+                            "active": True,
+                        }).execute()
+                        st.success(f"Canale '{new_name}' aggiunto! Sara monitorato dal prossimo job serale.")
+                        st.rerun()
+
+
 # --- Main ---
 def main():
     st.set_page_config(
@@ -394,7 +483,7 @@ def main():
 
     page = st.sidebar.radio(
         "Navigazione",
-        ["Classifica Canali", "Raccomandazioni Aperte", "Dettaglio Canale", "Download Excel"],
+        ["Classifica Canali", "Raccomandazioni Aperte", "Dettaglio Canale", "Download Excel", "Gestione Canali"],
     )
 
     if page == "Classifica Canali":
@@ -405,6 +494,8 @@ def main():
         page_channel_detail()
     elif page == "Download Excel":
         page_excel()
+    elif page == "Gestione Canali":
+        page_manage_channels()
 
 
 if __name__ == "__main__":
