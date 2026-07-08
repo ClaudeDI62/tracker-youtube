@@ -11,9 +11,9 @@ from src.db import get_client
 
 def _get_smtp_config():
     return {
-        "sender": os.environ.get("GMAIL_ADDRESS", ""),
-        "password": os.environ.get("GMAIL_APP_PASSWORD", ""),
-        "recipient": os.environ.get("EMAIL_RECIPIENT", ""),
+        "sender": os.environ.get("GMAIL_ADDRESS", "").strip(),
+        "password": os.environ.get("GMAIL_APP_PASSWORD", "").replace("\xa0", "").strip(),
+        "recipient": os.environ.get("EMAIL_RECIPIENT", "").strip(),
     }
 
 
