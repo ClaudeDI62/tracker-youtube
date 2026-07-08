@@ -1,0 +1,15 @@
+name: Keep Alive
+
+on:
+  schedule:
+    # Every Sunday at 12:00 UTC — prevents GitHub from disabling cron
+    # on repos inactive for 60 days
+    - cron: '0 12 * * 0'
+
+jobs:
+  keep-alive:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ping
+        run: echo "Keep-alive ping at $(date -u)"
